@@ -50,11 +50,9 @@ func (t *TokenFuncs) IncrementUsage(ctx context.Context) (bool, error) {
 
 // GetToken parses the token from metadata and creates the tokenID.
 func (t *TokenFuncs) GetToken(md metadata.MD) (string, error) {
-	apiToken, ok := md["apitoken"]
+	apiToken, ok := md["authorization"]
 	if !ok {
-		if apiToken, ok = md["grpcgateway-apitoken"]; !ok {
-			return "", grpc.Errorf(codes.InvalidArgument, "Missing 'apitoken' from request metadata")
-		}
+		return "", grpc.Errorf(codes.InvalidArgument, "Missing 'authorization' from request metadata")
 	}
 
 	return t.ServiceName + ":" + apiToken[0], nil
