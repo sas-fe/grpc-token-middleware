@@ -17,7 +17,7 @@ type TokenFuncs struct {
 
 // CheckValidity returns true if token is valid, false otherwise.
 func (t *TokenFuncs) CheckValidity(ctx context.Context) (bool, error) {
-	md, _ := metadata.FromContext(ctx)
+	md, _ := metadata.FromIncomingContext(ctx)
 	tokenID, err := t.GetToken(md)
 	if err != nil {
 		return false, err
@@ -35,7 +35,7 @@ func (t *TokenFuncs) CheckValidity(ctx context.Context) (bool, error) {
 
 // IncrementUsage performs the incrementing of token usage.
 func (t *TokenFuncs) IncrementUsage(ctx context.Context) (bool, error) {
-	md, _ := metadata.FromContext(ctx)
+	md, _ := metadata.FromIncomingContext(ctx)
 	tokenID, err := t.GetToken(md)
 	if err != nil {
 		return false, err
