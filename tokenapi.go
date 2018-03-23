@@ -30,10 +30,13 @@ func UnaryServerInterceptor(tokenAPI TokenAPI) grpc.UnaryServerInterceptor {
 			return nil, e
 		}
 
-		_, err = tokenAPI.IncrementUsage(ctx)
-		if err != nil {
-			return nil, err
-		}
+		go func() {
+			tokenAPI.IncrementUsage(ctx)
+		}()
+		// _, err = tokenAPI.IncrementUsage(ctx)
+		// if err != nil {
+		// 	return nil, err
+		// }
 
 		return resp, e
 	}
@@ -56,10 +59,13 @@ func StreamServerInterceptor(tokenAPI TokenAPI) grpc.StreamServerInterceptor {
 			return e
 		}
 
-		_, err = tokenAPI.IncrementUsage(ss.Context())
-		if err != nil {
-			return err
-		}
+		go func() {
+			tokenAPI.IncrementUsage(ss.Context())
+		}()
+		// _, err = tokenAPI.IncrementUsage(ss.Context())
+		// if err != nil {
+		// 	return err
+		// }
 
 		return e
 	}

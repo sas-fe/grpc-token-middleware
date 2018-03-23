@@ -1,6 +1,8 @@
 package tokenfuncs
 
 import (
+	"errors"
+
 	"github.com/sas-fe/grpc-token-middleware/pb"
 
 	"golang.org/x/net/context"
@@ -35,7 +37,10 @@ func (t *TokenFuncs) CheckValidity(ctx context.Context) (bool, error) {
 
 // IncrementUsage performs the incrementing of token usage.
 func (t *TokenFuncs) IncrementUsage(ctx context.Context) (bool, error) {
-	md, _ := metadata.FromIncomingContext(ctx)
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return false, errors.New("Request metadata doesn't exist")
+	}
 	tokenID, err := t.GetToken(md)
 	if err != nil {
 		return false, err
