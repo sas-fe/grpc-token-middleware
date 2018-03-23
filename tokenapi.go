@@ -11,6 +11,7 @@ import (
 type TokenAPI interface {
 	CheckValidity(ctx context.Context) (bool, error)
 	IncrementUsage(ctx context.Context) (bool, error)
+	AsyncIncrementUsage(ctx context.Context)
 }
 
 // UnaryServerInterceptor returns a new unary server interceptor that
@@ -31,9 +32,7 @@ func UnaryServerInterceptor(tokenAPI TokenAPI, asyncInc bool) grpc.UnaryServerIn
 		}
 
 		if asyncInc {
-			go func() {
-				tokenAPI.IncrementUsage(ctx)
-			}()
+			go tokenAPI.AsyncIncrementUsage(ctx)
 		} else {
 			_, err = tokenAPI.IncrementUsage(ctx)
 			if err != nil {
@@ -63,9 +62,7 @@ func StreamServerInterceptor(tokenAPI TokenAPI, asyncInc bool) grpc.StreamServer
 		}
 
 		if asyncInc {
-			go func() {
-				tokenAPI.IncrementUsage(ss.Context())
-			}()
+			go tokenAPI.AsyncIncrementUsage(ss.Context())
 		} else {
 			_, err = tokenAPI.IncrementUsage(ss.Context())
 			if err != nil {

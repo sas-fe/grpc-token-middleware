@@ -2,7 +2,9 @@ package tokenfuncs
 
 import (
 	"errors"
+	"log"
 
+	"github.com/sas-fe/grpc-token-middleware"
 	"github.com/sas-fe/grpc-token-middleware/pb"
 
 	"golang.org/x/net/context"
@@ -13,8 +15,9 @@ import (
 
 // TokenFuncs implements tokenapi.TokenAPI
 type TokenFuncs struct {
-	TSClient    tokenstore.TokenStoreClient
-	ServiceName string
+	TSClient     tokenstore.TokenStoreClient
+	ServiceName  string
+	AsyncIncChan chan string
 }
 
 // CheckValidity returns true if token is valid, false otherwise.
@@ -53,6 +56,33 @@ func (t *TokenFuncs) IncrementUsage(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
+// AsyncIncrementUsage increments token usage via a channel.
+func (t *TokenFuncs) AsyncIncrementUsage(ctx context.Context) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return
+	}
+	tokenID, err := t.GetToken(md)
+	if err != nil {
+		return
+	}
+
+	t.AsyncIncChan <- tokenID
+}
+
+// ListenAndInc listens for tokenID on the AsyncIncChan channel and performs the incrementation.
+func (t *TokenFuncs) ListenAndInc() {
+	for {
+		tokenID := <-t.AsyncIncChan
+		log.Printf("Received %v\n", tokenID)
+		ctx := context.Background()
+		_, err := t.TSClient.IncUsage(ctx, &tokenstore.Token{Id: tokenID})
+		if err != nil {
+			log.Println(err)
+		}
+	}
+}
+
 // GetToken parses the token from metadata and creates the tokenID.
 func (t *TokenFuncs) GetToken(md metadata.MD) (string, error) {
 	apiToken, ok := md["authorization"]
@@ -64,11 +94,22 @@ func (t *TokenFuncs) GetToken(md metadata.MD) (string, error) {
 }
 
 // NewTokenFuncs creates a new TokenFuncs using a connection to the tokenstore and service name.
-func NewTokenFuncs(tsConn *grpc.ClientConn, serviceName string) *TokenFuncs {
+func NewTokenFuncs(tsConn *grpc.ClientConn, serviceName string, asyncInc bool) *TokenFuncs {
 	tsClient := tokenstore.NewTokenStoreClient(tsConn)
 
-	return &TokenFuncs{
-		TSClient:    tsClient,
-		ServiceName: serviceName,
+	asyncChan := make(chan string)
+
+	tokenFuncs := &TokenFuncs{
+		TSClient:     tsClient,
+		ServiceName:  serviceName,
+		AsyncIncChan: asyncChan,
 	}
+
+	if asyncInc {
+		tokenFuncs.ListenAndInc()
+	}
+
+	return tokenFuncs
 }
+
+var _ tokenapi.TokenAPI = (*TokenFuncs)(nil)
