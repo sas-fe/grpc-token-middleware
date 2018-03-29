@@ -81,7 +81,7 @@ func (t *TokenFuncs) ListenAndInc() {
 	for {
 		select {
 		case tokenID := <-t.AsyncIncChan:
-			log.Printf("Received %v\n", tokenID)
+			// log.Printf("Received %v\n", tokenID)
 			ctx := context.Background()
 			_, err := t.TSClient.IncUsage(ctx, &tokenstore.Token{Id: tokenID})
 			if err != nil {
