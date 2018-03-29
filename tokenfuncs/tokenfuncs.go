@@ -21,6 +21,9 @@ type TokenFuncs struct {
 	Async        bool
 }
 
+// TFOptions configures how TokenFuncs are set up.
+type TFOptions func(*TokenFuncs)
+
 // CheckValidity returns true if token is valid, false otherwise.
 func (t *TokenFuncs) CheckValidity(ctx context.Context) (bool, error) {
 	md, _ := metadata.FromIncomingContext(ctx)
@@ -102,23 +105,29 @@ func (t *TokenFuncs) GetToken(md metadata.MD) (string, error) {
 }
 
 // NewTokenFuncs creates a new TokenFuncs using a connection to the tokenstore and service name.
-func NewTokenFuncs(tsConn *grpc.ClientConn, serviceName string, asyncInc bool) *TokenFuncs {
+func NewTokenFuncs(tsConn *grpc.ClientConn, serviceName string, options ...TFOptions) *TokenFuncs {
 	tsClient := tokenstore.NewTokenStoreClient(tsConn)
 
-	asyncChan := make(chan string)
-
 	tokenFuncs := &TokenFuncs{
-		TSClient:     tsClient,
-		ServiceName:  serviceName,
-		AsyncIncChan: asyncChan,
-		Async:        asyncInc,
+		TSClient:    tsClient,
+		ServiceName: serviceName,
 	}
 
-	if asyncInc {
-		go tokenFuncs.ListenAndInc()
+	for _, option := range options {
+		option(tokenFuncs)
 	}
 
 	return tokenFuncs
+}
+
+// WithAsync sets marks async incrementation.
+func WithAsync() TFOptions {
+	return func(tf *TokenFuncs) {
+		asyncChan := make(chan string)
+		tf.AsyncIncChan = asyncChan
+		tf.Async = true
+		go tf.ListenAndInc()
+	}
 }
 
 var _ tokenapi.TokenAPI = (*TokenFuncs)(nil)
