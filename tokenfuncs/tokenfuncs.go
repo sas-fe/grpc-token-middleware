@@ -18,6 +18,7 @@ type TokenFuncs struct {
 	TSClient     tokenstore.TokenStoreClient
 	ServiceName  string
 	AsyncIncChan chan string
+	Async        bool
 }
 
 // CheckValidity returns true if token is valid, false otherwise.
@@ -70,15 +71,22 @@ func (t *TokenFuncs) AsyncIncrementUsage(ctx context.Context) {
 	t.AsyncIncChan <- tokenID
 }
 
+// IsAsync checks if we are using async incrementation.
+func (t *TokenFuncs) IsAsync() bool {
+	return t.Async
+}
+
 // ListenAndInc listens for tokenID on the AsyncIncChan channel and performs the incrementation.
 func (t *TokenFuncs) ListenAndInc() {
 	for {
-		tokenID := <-t.AsyncIncChan
-		log.Printf("Received %v\n", tokenID)
-		ctx := context.Background()
-		_, err := t.TSClient.IncUsage(ctx, &tokenstore.Token{Id: tokenID})
-		if err != nil {
-			log.Println(err)
+		select {
+		case tokenID := <-t.AsyncIncChan:
+			log.Printf("Received %v\n", tokenID)
+			ctx := context.Background()
+			_, err := t.TSClient.IncUsage(ctx, &tokenstore.Token{Id: tokenID})
+			if err != nil {
+				log.Println(err)
+			}
 		}
 	}
 }
@@ -103,10 +111,11 @@ func NewTokenFuncs(tsConn *grpc.ClientConn, serviceName string, asyncInc bool) *
 		TSClient:     tsClient,
 		ServiceName:  serviceName,
 		AsyncIncChan: asyncChan,
+		Async:        asyncInc,
 	}
 
 	if asyncInc {
-		tokenFuncs.ListenAndInc()
+		go tokenFuncs.ListenAndInc()
 	}
 
 	return tokenFuncs

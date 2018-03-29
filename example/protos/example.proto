@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package example;
+
+service TokenAPIExample {
+    rpc Do (DoRequest) returns (DoResponse) {};
+}
+
+message DoRequest {
+    bool do = 1;
+}
+
+message DoResponse {
+    bool success = 2;
+}

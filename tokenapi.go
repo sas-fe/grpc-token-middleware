@@ -12,11 +12,12 @@ type TokenAPI interface {
 	CheckValidity(ctx context.Context) (bool, error)
 	IncrementUsage(ctx context.Context) (bool, error)
 	AsyncIncrementUsage(ctx context.Context)
+	IsAsync() bool
 }
 
 // UnaryServerInterceptor returns a new unary server interceptor that
 // checks token validity per-request and increments usage if valid.
-func UnaryServerInterceptor(tokenAPI TokenAPI, asyncInc bool) grpc.UnaryServerInterceptor {
+func UnaryServerInterceptor(tokenAPI TokenAPI) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		allowed, err := tokenAPI.CheckValidity(ctx)
 		if err != nil {
@@ -31,7 +32,7 @@ func UnaryServerInterceptor(tokenAPI TokenAPI, asyncInc bool) grpc.UnaryServerIn
 			return nil, e
 		}
 
-		if asyncInc {
+		if tokenAPI.IsAsync() {
 			go tokenAPI.AsyncIncrementUsage(ctx)
 		} else {
 			_, err = tokenAPI.IncrementUsage(ctx)
@@ -46,7 +47,7 @@ func UnaryServerInterceptor(tokenAPI TokenAPI, asyncInc bool) grpc.UnaryServerIn
 
 // StreamServerInterceptor returns a new stream server interceptor that
 // checks token validity per-request and increments usage if valid.
-func StreamServerInterceptor(tokenAPI TokenAPI, asyncInc bool) grpc.StreamServerInterceptor {
+func StreamServerInterceptor(tokenAPI TokenAPI) grpc.StreamServerInterceptor {
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		allowed, err := tokenAPI.CheckValidity(ss.Context())
 		if err != nil {
@@ -61,7 +62,7 @@ func StreamServerInterceptor(tokenAPI TokenAPI, asyncInc bool) grpc.StreamServer
 			return e
 		}
 
-		if asyncInc {
+		if tokenAPI.IsAsync() {
 			go tokenAPI.AsyncIncrementUsage(ss.Context())
 		} else {
 			_, err = tokenAPI.IncrementUsage(ss.Context())
