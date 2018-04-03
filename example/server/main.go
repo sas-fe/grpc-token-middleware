@@ -27,8 +27,10 @@ func main() {
 		log.Fatal(err)
 	}
 	defer tsConn.Close()
-	tf := tokenfuncs.NewTokenFuncs(tsConn, "test", tokenfuncs.WithAsync())
-	// tf := tokenfuncs.NewTokenFuncs(tsConn, "test")
+
+	tsClient := tokenfuncs.NewTokenStoreClient(tsConn)
+	tf := tokenfuncs.NewTokenFuncs(tsClient, "test", tokenfuncs.WithAsync())
+	// tf := tokenfuncs.NewTokenFuncs(tsClient, "test")
 
 	lis, err := net.Listen("tcp", ":50052")
 	if err != nil {

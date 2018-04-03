@@ -104,10 +104,13 @@ func (t *TokenFuncs) GetToken(md metadata.MD) (string, error) {
 	return t.ServiceName + ":" + apiToken[0], nil
 }
 
-// NewTokenFuncs creates a new TokenFuncs using a connection to the tokenstore and service name.
-func NewTokenFuncs(tsConn *grpc.ClientConn, serviceName string, options ...TFOptions) *TokenFuncs {
-	tsClient := tokenstore.NewTokenStoreClient(tsConn)
+// NewTokenStoreClient namespaces the function from tokenstore.
+func NewTokenStoreClient(tsConn *grpc.ClientConn) tokenstore.TokenStoreClient {
+	return tokenstore.NewTokenStoreClient(tsConn)
+}
 
+// NewTokenFuncs creates a new TokenFuncs using a connection to the tokenstore and service name.
+func NewTokenFuncs(tsClient tokenstore.TokenStoreClient, serviceName string, options ...TFOptions) *TokenFuncs {
 	tokenFuncs := &TokenFuncs{
 		TSClient:    tsClient,
 		ServiceName: serviceName,
