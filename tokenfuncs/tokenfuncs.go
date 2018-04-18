@@ -2,8 +2,8 @@ package tokenfuncs
 
 import (
 	"errors"
-	"log"
 
+	"github.com/golang/glog"
 	"github.com/sas-fe/grpc-token-middleware"
 	"github.com/sas-fe/grpc-token-middleware/pb"
 
@@ -40,6 +40,7 @@ func (t *TokenFuncs) CheckValidity(ctx context.Context) (bool, error) {
 
 	res, err := t.TSDaemonClient.CheckValidity(ctx, &tokenstore.Token{Id: tokenID})
 	if err != nil {
+		glog.Errorf("TSDaemonClient.CheckValidity() Error: %v", err)
 		return false, err
 	}
 	if !res.Valid {
@@ -61,6 +62,7 @@ func (t *TokenFuncs) IncrementUsage(ctx context.Context) (bool, error) {
 
 	_, err = t.TSClient.IncUsage(ctx, &tokenstore.Token{Id: tokenID})
 	if err != nil {
+		glog.Errorf("TSClient.IncUsage() Error: %v", err)
 		return false, err
 	}
 	return true, nil
@@ -90,11 +92,11 @@ func (t *TokenFuncs) ListenAndInc() {
 	for {
 		select {
 		case tokenID := <-t.AsyncIncChan:
-			// log.Printf("Received %v\n", tokenID)
+			glog.V(2).Infof("Received: %v", tokenID)
 			ctx := context.Background()
 			_, err := t.TSClient.IncUsage(ctx, &tokenstore.Token{Id: tokenID})
 			if err != nil {
-				log.Println(err)
+				glog.Errorf("TSClient.IncUsage() Error: %v", err)
 			}
 		}
 	}
