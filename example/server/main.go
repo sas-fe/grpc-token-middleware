@@ -22,6 +22,13 @@ func (s *server) Do(ctx context.Context, in *pb.DoRequest) (*pb.DoResponse, erro
 func main() {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithInsecure())
+
+	tdConn, err := grpc.Dial("localhost:50050", opts...)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tdConn.Close()
+
 	tsConn, err := grpc.Dial("localhost:50051", opts...)
 	if err != nil {
 		log.Fatal(err)
@@ -29,8 +36,8 @@ func main() {
 	defer tsConn.Close()
 
 	tsClient := tokenfuncs.NewTokenStoreClient(tsConn)
-	tf := tokenfuncs.NewTokenFuncs(tsClient, "test", tokenfuncs.WithAsync())
-	// tf := tokenfuncs.NewTokenFuncs(tsClient, "test")
+	tdClient := tokenfuncs.NewTSDaemonClient(tdConn)
+	tf := tokenfuncs.NewTokenFuncs(tsClient, tdClient, "test", tokenfuncs.WithAsync())
 
 	lis, err := net.Listen("tcp", ":50052")
 	if err != nil {

@@ -13,12 +13,15 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+const serviceSepString = ":"
+
 // TokenFuncs implements tokenapi.TokenAPI
 type TokenFuncs struct {
-	TSClient     tokenstore.TokenStoreClient
-	ServiceName  string
-	AsyncIncChan chan string
-	Async        bool
+	TSClient       tokenstore.TokenStoreClient
+	TSDaemonClient tokenstore.TSDaemonClient
+	ServiceName    string
+	AsyncIncChan   chan string
+	Async          bool
 }
 
 // TFOptions configures how TokenFuncs are set up.
@@ -26,17 +29,20 @@ type TFOptions func(*TokenFuncs)
 
 // CheckValidity returns true if token is valid, false otherwise.
 func (t *TokenFuncs) CheckValidity(ctx context.Context) (bool, error) {
-	md, _ := metadata.FromIncomingContext(ctx)
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return false, errors.New("Request metadata doesn't exist")
+	}
 	tokenID, err := t.GetToken(md)
 	if err != nil {
 		return false, err
 	}
 
-	res, err := t.TSClient.TokenStatus(ctx, &tokenstore.Token{Id: tokenID})
+	res, err := t.TSDaemonClient.CheckValidity(ctx, &tokenstore.Token{Id: tokenID})
 	if err != nil {
 		return false, err
 	}
-	if !res.Allowed {
+	if !res.Valid {
 		return false, nil
 	}
 	return true, nil
@@ -101,7 +107,7 @@ func (t *TokenFuncs) GetToken(md metadata.MD) (string, error) {
 		return "", grpc.Errorf(codes.InvalidArgument, "Missing 'authorization' from request metadata")
 	}
 
-	return t.ServiceName + ":" + apiToken[0], nil
+	return t.ServiceName + serviceSepString + apiToken[0], nil
 }
 
 // NewTokenStoreClient namespaces the function from tokenstore.
@@ -109,11 +115,22 @@ func NewTokenStoreClient(tsConn *grpc.ClientConn) tokenstore.TokenStoreClient {
 	return tokenstore.NewTokenStoreClient(tsConn)
 }
 
+// NewTSDaemonClient namespaces the function from tokenstore.
+func NewTSDaemonClient(tdConn *grpc.ClientConn) tokenstore.TSDaemonClient {
+	return tokenstore.NewTSDaemonClient(tdConn)
+}
+
 // NewTokenFuncs creates a new TokenFuncs using a connection to the tokenstore and service name.
-func NewTokenFuncs(tsClient tokenstore.TokenStoreClient, serviceName string, options ...TFOptions) *TokenFuncs {
+func NewTokenFuncs(tsClient tokenstore.TokenStoreClient, tdClient tokenstore.TSDaemonClient, serviceName string, options ...TFOptions) *TokenFuncs {
 	tokenFuncs := &TokenFuncs{
-		TSClient:    tsClient,
-		ServiceName: serviceName,
+		TSClient:       tsClient,
+		TSDaemonClient: tdClient,
+		ServiceName:    serviceName,
+	}
+
+	// Force async if no other options
+	if len(options) == 0 {
+		options = append(options, WithAsync())
 	}
 
 	for _, option := range options {
