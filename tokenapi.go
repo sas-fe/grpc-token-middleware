@@ -41,7 +41,7 @@ func UnaryServerInterceptor(tokenAPI TokenAPI) grpc.UnaryServerInterceptor {
 			}
 		}
 
-		return resp, e
+		return resp, nil
 	}
 }
 
@@ -71,6 +71,6 @@ func StreamServerInterceptor(tokenAPI TokenAPI) grpc.StreamServerInterceptor {
 			}
 		}
 
-		return e
+		return nil
 	}
 }

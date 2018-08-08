@@ -72,10 +72,12 @@ func (t *TokenFuncs) IncrementUsage(ctx context.Context) (bool, error) {
 func (t *TokenFuncs) AsyncIncrementUsage(ctx context.Context) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
+		glog.Errorf("AsyncIncrementUsage() Error: No incoming metadata")
 		return
 	}
 	tokenID, err := t.GetToken(md)
 	if err != nil {
+		glog.Errorf("AsyncIncrementUsage() Error: %v", err)
 		return
 	}
 
